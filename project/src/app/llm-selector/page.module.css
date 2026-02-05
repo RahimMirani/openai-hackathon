@@ -1,0 +1,154 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+  background:
+    radial-gradient(circle at top right, #dbeafe 0%, transparent 40%),
+    radial-gradient(circle at bottom left, #fae8ff 0%, transparent 45%),
+    #f8fafc;
+  font-family: var(--font-geist-sans);
+}
+
+.card {
+  width: 100%;
+  max-width: 760px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  padding: 28px;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08);
+}
+
+.header {
+  margin-bottom: 22px;
+}
+
+.header h1 {
+  font-size: 34px;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+  color: #0f172a;
+  margin-bottom: 8px;
+}
+
+.header p {
+  color: #475569;
+  line-height: 1.55;
+}
+
+.form {
+  display: grid;
+  gap: 16px;
+}
+
+.label {
+  display: grid;
+  gap: 8px;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.input,
+.textarea {
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 15px;
+  font-family: inherit;
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.input:focus,
+.textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+.textarea {
+  resize: vertical;
+}
+
+.button {
+  border: 0;
+  border-radius: 10px;
+  padding: 12px 18px;
+  width: fit-content;
+  background: #0f172a;
+  color: #ffffff;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.button:hover:enabled {
+  background: #1e293b;
+}
+
+.button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.meta {
+  margin-top: 16px;
+  display: flex;
+  gap: 12px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.error {
+  margin-top: 14px;
+  color: #b91c1c;
+  font-size: 14px;
+}
+
+.output {
+  margin-top: 18px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.output h2 {
+  margin-bottom: 8px;
+  font-size: 16px;
+  color: #0f172a;
+}
+
+.output pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #1e293b;
+  line-height: 1.6;
+  font-family: var(--font-geist-mono);
+  font-size: 13px;
+}
+
+.backLink {
+  margin-top: 18px;
+  display: inline-block;
+  color: #334155;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+@media (max-width: 640px) {
+  .card {
+    padding: 20px;
+  }
+
+  .header h1 {
+    font-size: 28px;
+  }
+
+  .meta {
+    flex-direction: column;
+    gap: 6px;
+  }
+}
