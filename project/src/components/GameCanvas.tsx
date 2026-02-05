@@ -786,227 +786,269 @@ export default function GameCanvas() {
     setSceneSeed((seed) => seed + 1);
   };
 
+  const modeIcon = config.demonstration.mode === "gravity" ? "🌍" : config.demonstration.mode === "collision" ? "💥" : "🎯";
+
   return (
-    <div className="gameShell" ref={containerRef}>
-      <div className="gameHeader">
-        <div>
-          <p className="eyebrow">Physics Concept Canvas</p>
-          <h1 className="gameTitle">{activeGame.title}</h1>
-          <p className="lede">{activeGame.objective}</p>
+    <div className="gamePageContainer">
+      {/* Top Navigation Bar */}
+      <nav className="gameNav">
+        <a href="/" className="gameNavBack">
+          <span className="navBackIcon">←</span>
+          <span>Back to Generator</span>
+        </a>
+        <div className="gameNavCenter">
+          <span className="gameNavBrand">⚡ Physics Lab</span>
         </div>
-        <div className={`statusBadge ${landingDeltaSeconds !== null ? "win" : ""}`}>
-          {statusLabel}
+        <div className="gameNavStatus">
+          <span className={`simStatus ${isPaused ? "paused" : "running"}`}>
+            {isPaused ? "⏸ Paused" : "▶ Running"}
+          </span>
         </div>
-      </div>
+      </nav>
 
-      {games.length > 1 ? (
-        <div className="conceptTabs">
-          {games.map((game, index) => (
-            <button
-              key={game.id}
-              type="button"
-              className={`conceptTab ${index === activeGameIndex ? "active" : ""}`}
-              onClick={() => activateGame(index)}
-            >
-              <span>{index + 1}.</span> {game.title}
-            </button>
-          ))}
-        </div>
-      ) : null}
-
-      <div className="conceptLayout">
-        <div className="conceptStage">
-          <div className="gameCanvasWrap">
-            <canvas ref={canvasRef} className="gameCanvas" />
-          </div>
-          <div className="gameFooter">
-            <p>{config.demonstration.summary}</p>
-            <p>{title}</p>
+      {/* Concept Selector Tabs */}
+      {games.length > 1 && (
+        <div className="conceptSelector">
+          <div className="conceptSelectorInner">
+            {games.map((game, index) => (
+              <button
+                key={game.id}
+                type="button"
+                className={`conceptSelectorTab ${index === activeGameIndex ? "active" : ""}`}
+                onClick={() => activateGame(index)}
+              >
+                <span className="conceptTabNum">{index + 1}</span>
+                <span className="conceptTabTitle">{game.title}</span>
+                <span className="conceptTabMode">{game.config.demonstration.mode}</span>
+              </button>
+            ))}
           </div>
         </div>
+      )}
 
-        <aside className="conceptSidebar">
-          <div className="conceptPanel">
-            <h2>Interactive Controls</h2>
-            <p>{config.learning.coachPrompt}</p>
+      <div className="gameMainArea" ref={containerRef}>
+        {/* Left Panel - Canvas */}
+        <div className="gameCanvasSection">
+          <div className="canvasHeader">
+            <div className="canvasHeaderLeft">
+              <span className="canvasModeIcon">{modeIcon}</span>
+              <div>
+                <h1 className="canvasTitle">{activeGame.title}</h1>
+                <p className="canvasSubtitle">{activeGame.objective}</p>
+              </div>
+            </div>
+            <div className="canvasHeaderRight">
+              <div className={`resultBadge ${landingDeltaSeconds !== null ? "success" : ""}`}>
+                {statusLabel}
+              </div>
+            </div>
           </div>
 
-          <div className="controlGroup">
-            <label htmlFor="gravity-strength">Gravity</label>
-            <input
-              id="gravity-strength"
-              type="range"
-              min={0}
-              max={60}
-              step={1}
-              value={gravityStrength}
-              onChange={(event) => setGravityStrength(Number(event.target.value))}
-            />
-            <span>{gravityStrength.toFixed(0)}</span>
+          <div className="canvasWrapper">
+            <canvas ref={canvasRef} className="physicsCanvas" />
+            <div className="canvasOverlay">
+              <span className="tickCounter">{config.demonstration.mode}</span>
+            </div>
           </div>
 
-          <div className="controlGroup">
-            <label htmlFor="restitution">Bounciness</label>
-            <input
-              id="restitution"
-              type="range"
-              min={0}
-              max={1}
-              step={0.01}
-              value={restitution}
-              onChange={(event) => setRestitution(Number(event.target.value))}
-            />
-            <span>{restitution.toFixed(2)}</span>
+          <div className="canvasInfo">
+            <p className="canvasDescription">{config.demonstration.summary}</p>
+            <div className="canvasStats">
+              <span className="statItem">
+                <span className="statLabel">Mode</span>
+                <span className="statValue">{title}</span>
+              </span>
+              <span className="statItem">
+                <span className="statLabel">Objects</span>
+                <span className="statValue">{spawnedObjects}</span>
+              </span>
+              {config.demonstration.mode === "gravity" && (
+                <span className="statItem">
+                  <span className="statLabel">Landing Δ</span>
+                  <span className="statValue">
+                    {landingDeltaSeconds === null ? "—" : `${landingDeltaSeconds.toFixed(3)}s`}
+                  </span>
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Panel - Controls */}
+        <aside className="gameControlsSection">
+          {/* Quick Actions */}
+          <div className="controlCard actionCard">
+            <div className="actionButtons">
+              <button
+                className={`actionBtn ${isPaused ? "play" : "pause"}`}
+                type="button"
+                onClick={() => setIsPaused((p) => !p)}
+              >
+                {isPaused ? "▶ Play" : "⏸ Pause"}
+              </button>
+              <button className="actionBtn reset" type="button" onClick={handleReset}>
+                ↻ Reset
+              </button>
+            </div>
           </div>
 
-          <div className="controlGroup">
-            <label htmlFor="spawn-size">New Object Size</label>
-            <input
-              id="spawn-size"
-              type="range"
-              min={8}
-              max={40}
-              step={1}
-              value={spawnSize}
-              onChange={(event) => setSpawnSize(Number(event.target.value))}
-            />
-            <span>{spawnSize}px</span>
+          {/* Physics Controls */}
+          <div className="controlCard">
+            <div className="controlCardHeader">
+              <span className="controlCardIcon">⚙️</span>
+              <h3>Physics Parameters</h3>
+            </div>
+            <div className="sliderGroup">
+              <div className="sliderRow">
+                <label htmlFor="gravity-strength">Gravity</label>
+                <input
+                  id="gravity-strength"
+                  type="range"
+                  min={0}
+                  max={60}
+                  step={1}
+                  value={gravityStrength}
+                  onChange={(e) => setGravityStrength(Number(e.target.value))}
+                />
+                <span className="sliderValue">{gravityStrength}</span>
+              </div>
+              <div className="sliderRow">
+                <label htmlFor="restitution">Bounciness</label>
+                <input
+                  id="restitution"
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={restitution}
+                  onChange={(e) => setRestitution(Number(e.target.value))}
+                />
+                <span className="sliderValue">{restitution.toFixed(2)}</span>
+              </div>
+            </div>
           </div>
 
-          <div className="controlGroup">
-            <label htmlFor="spawn-mass">New Object Mass</label>
-            <input
-              id="spawn-mass"
-              type="range"
-              min={0.5}
-              max={12}
-              step={0.5}
-              value={spawnMass}
-              onChange={(event) => setSpawnMass(Number(event.target.value))}
-            />
-            <span>{spawnMass.toFixed(1)}</span>
+          {/* Object Spawner */}
+          <div className="controlCard">
+            <div className="controlCardHeader">
+              <span className="controlCardIcon">🎱</span>
+              <h3>Spawn Objects</h3>
+            </div>
+            <div className="sliderGroup">
+              <div className="sliderRow">
+                <label htmlFor="spawn-size">Size</label>
+                <input
+                  id="spawn-size"
+                  type="range"
+                  min={8}
+                  max={40}
+                  step={1}
+                  value={spawnSize}
+                  onChange={(e) => setSpawnSize(Number(e.target.value))}
+                />
+                <span className="sliderValue">{spawnSize}px</span>
+              </div>
+              <div className="sliderRow">
+                <label htmlFor="spawn-mass">Mass</label>
+                <input
+                  id="spawn-mass"
+                  type="range"
+                  min={0.5}
+                  max={12}
+                  step={0.5}
+                  value={spawnMass}
+                  onChange={(e) => setSpawnMass(Number(e.target.value))}
+                />
+                <span className="sliderValue">{spawnMass.toFixed(1)}</span>
+              </div>
+              <div className="colorRow">
+                <label htmlFor="spawn-color">Color</label>
+                <input
+                  id="spawn-color"
+                  type="color"
+                  value={spawnColor}
+                  onChange={(e) => setSpawnColor(e.target.value)}
+                />
+                <button className="spawnBtn" type="button" onClick={handleAddObject}>
+                  + Add Object
+                </button>
+              </div>
+            </div>
           </div>
 
-          <div className="controlGroup">
-            <label htmlFor="spawn-color">New Object Color</label>
-            <input
-              id="spawn-color"
-              type="color"
-              value={spawnColor}
-              onChange={(event) => setSpawnColor(event.target.value)}
-            />
+          {/* Equations Panel */}
+          <div className="controlCard equationsCard">
+            <div className="controlCardHeader">
+              <span className="controlCardIcon">📐</span>
+              <h3>Equations</h3>
+            </div>
+            <div className="equationTabs">
+              {config.learning.equationAnnotations.map((ann) => (
+                <button
+                  key={ann.id}
+                  type="button"
+                  className={`eqTab ${selectedEquation?.id === ann.id ? "active" : ""}`}
+                  onClick={() => setSelectedEquationId(ann.id)}
+                >
+                  {ann.label}
+                </button>
+              ))}
+            </div>
+            {selectedEquation && (
+              <div className="equationDisplay">
+                <div className="equationFormulaBig">{selectedEquation.equation}</div>
+                <p className="equationDesc">{selectedEquation.explanation}</p>
+                <div className="variableTags">
+                  {selectedEquation.variables.map((v) => (
+                    <span key={v} className="varTag">{v}</span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="sidebarButtons">
-            <button className="primaryButton" type="button" onClick={handleAddObject}>
-              Add Object
-            </button>
-            <button
-              className="ghostButton"
-              type="button"
-              onClick={() => setIsPaused((paused) => !paused)}
-            >
-              {isPaused ? "Resume" : "Pause"}
-            </button>
-            <button className="ghostButton" type="button" onClick={handleReset}>
-              Reset Scene
-            </button>
-          </div>
-
-          <div className="conceptPanel">
-            <h2>{config.learning.sidebarTitle}</h2>
-            <button
-              className="ghostButton"
-              type="button"
-              onClick={() => setTutorModeEnabled((enabled) => !enabled)}
-            >
-              {tutorModeEnabled ? "Hide Tutor Mode" : "Show Tutor Mode"}
-            </button>
-            {tutorModeEnabled ? (
+          {/* Learning Guide */}
+          <div className="controlCard learningCard">
+            <div className="controlCardHeader">
+              <span className="controlCardIcon">🎓</span>
+              <h3>Learning Guide</h3>
+              <button
+                className="toggleBtn"
+                type="button"
+                onClick={() => setTutorModeEnabled((e) => !e)}
+              >
+                {tutorModeEnabled ? "Hide" : "Show"}
+              </button>
+            </div>
+            {tutorModeEnabled && (
               <>
-                <ul className="lessonList">
+                <p className="coachText">{config.learning.coachPrompt}</p>
+                <ul className="tipsList">
                   {config.learning.tutorTips.map((tip) => (
                     <li key={tip}>{tip}</li>
                   ))}
                 </ul>
-                <div className="checkpointGroup">
-                  <p className="metaTitle">
+                <div className="checkpointsSection">
+                  <p className="checkpointsTitle">
                     Checkpoints ({completedCheckpoints}/{config.learning.checkpoints.length})
                   </p>
-                  {config.learning.checkpoints.map((checkpoint) => (
-                    <label key={checkpoint} className="checkpointRow">
-                      <input
-                        type="checkbox"
-                        checked={Boolean(checkpointState[checkpoint])}
-                        onChange={() =>
-                          setCheckpointState((state) => ({
-                            ...state,
-                            [checkpoint]: !state[checkpoint],
-                          }))
-                        }
-                      />
-                      <span>{checkpoint}</span>
-                    </label>
-                  ))}
+                  <div className="checkpointsList">
+                    {config.learning.checkpoints.map((cp) => (
+                      <label key={cp} className="checkpointItem">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(checkpointState[cp])}
+                          onChange={() =>
+                            setCheckpointState((s) => ({ ...s, [cp]: !s[cp] }))
+                          }
+                        />
+                        <span>{cp}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
               </>
-            ) : null}
-          </div>
-
-          <div className="conceptPanel equationPanel">
-            <h2>Equation Annotations</h2>
-            <div className="equationChooser">
-              {config.learning.equationAnnotations.map((annotation) => (
-                <button
-                  key={annotation.id}
-                  type="button"
-                  className={`equationPill ${selectedEquation?.id === annotation.id ? "active" : ""}`}
-                  onClick={() => setSelectedEquationId(annotation.id)}
-                >
-                  {annotation.label}
-                </button>
-              ))}
-            </div>
-            {selectedEquation ? (
-              <div className="equationCard">
-                <p className="equationLabel">{selectedEquation.label}</p>
-                <p className="equationFormula">{selectedEquation.equation}</p>
-                <p className="equationExplanation">{selectedEquation.explanation}</p>
-                <ul className="variableList">
-                  {selectedEquation.variables.map((variable) => (
-                    <li key={variable}>{variable}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : (
-              <p className="logEmpty">No equation annotations available.</p>
             )}
-          </div>
-
-          <div className="conceptPanel">
-            <p>
-              Spawned objects: <strong>{spawnedObjects}</strong>
-            </p>
-            {config.demonstration.mode === "gravity" ? (
-              <p>
-                Heavy vs light landing delta:{" "}
-                <strong>
-                  {landingDeltaSeconds === null
-                    ? "waiting..."
-                    : `${landingDeltaSeconds.toFixed(3)}s`}
-                </strong>
-              </p>
-            ) : null}
-            {activeGame.issues.length > 0 ? (
-              <>
-                <p className="metaTitle">Agent Notes</p>
-                <ul className="lessonList">
-                  {activeGame.issues.map((issue) => (
-                    <li key={issue}>{issue}</li>
-                  ))}
-                </ul>
-              </>
-            ) : null}
           </div>
         </aside>
       </div>
