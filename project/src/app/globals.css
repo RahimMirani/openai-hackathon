@@ -46,6 +46,11 @@ main.page {
   padding: 48px 24px 80px;
 }
 
+.gamePage {
+  display: flex;
+  justify-content: center;
+}
+
 .shell {
   max-width: 1160px;
   margin: 0 auto;
@@ -259,6 +264,13 @@ h1 {
   cursor: pointer;
 }
 
+.sendButton:disabled,
+.primaryButton:disabled,
+.stepCard:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .sidePanel {
   gap: 20px;
 }
@@ -351,6 +363,7 @@ h1 {
   background: var(--bg-alt);
   font-size: 14px;
   text-align: center;
+  cursor: pointer;
 }
 
 .primaryButton {
@@ -361,6 +374,125 @@ h1 {
   border-radius: 14px;
   font-size: 14px;
   cursor: pointer;
+}
+
+.runLog {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.logList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.logEmpty {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.logItem {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-alt);
+  font-size: 13px;
+}
+
+.logItem.ok {
+  border-color: rgba(43, 111, 106, 0.35);
+  background: rgba(43, 111, 106, 0.08);
+}
+
+.logItem.error {
+  border-color: rgba(169, 68, 68, 0.35);
+  background: rgba(169, 68, 68, 0.08);
+}
+
+.logTitle {
+  font-weight: 600;
+}
+
+.logMessage {
+  color: var(--muted);
+}
+
+.logTime {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.gameShell {
+  width: min(1100px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin: 0 auto;
+}
+
+.gameHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.gameTitle {
+  font-family: var(--font-serif), "Times New Roman", serif;
+  font-size: clamp(30px, 4vw, 46px);
+  margin-top: 4px;
+}
+
+.statusBadge {
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border: 1px solid var(--border);
+  background: var(--bg-alt);
+  color: var(--muted);
+}
+
+.statusBadge.win {
+  background: rgba(43, 111, 106, 0.12);
+  color: var(--accent);
+  border-color: rgba(43, 111, 106, 0.3);
+}
+
+.statusBadge.lose {
+  background: rgba(169, 68, 68, 0.12);
+  color: #a94444;
+  border-color: rgba(169, 68, 68, 0.3);
+}
+
+.gameCanvasWrap {
+  border-radius: 24px;
+  border: 1px solid var(--border);
+  background: var(--surface-strong);
+  box-shadow: var(--shadow);
+  padding: 16px;
+}
+
+.gameCanvas {
+  display: block;
+  width: 100%;
+  border-radius: 16px;
+  background: var(--bg-alt);
+}
+
+.gameFooter {
+  font-size: 14px;
+  color: var(--muted);
 }
 
 @keyframes rise {
@@ -394,6 +526,11 @@ h1 {
   .topbarActions {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .gameHeader {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 
