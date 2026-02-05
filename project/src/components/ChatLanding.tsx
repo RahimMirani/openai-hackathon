@@ -3,8 +3,10 @@
 import type { ChangeEvent } from "react";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import type { DemoOption, SyllabusExtractionResult } from "@/lib/syllabusPipeline";
 
 type PipelineStep = "design" | "build" | "playtest" | "fix";
+type UploadState = "idle" | "running" | "done" | "error";
 
 type RunLog = {
   id: string;
@@ -27,12 +29,7 @@ const stepLabels: Record<PipelineStep, string> = {
   fix: "Fix",
 };
 
-const orderedSteps: PipelineStep[] = [
-  "design",
-  "build",
-  "playtest",
-  "fix",
-];
+const orderedSteps: PipelineStep[] = ["design", "build", "playtest", "fix"];
 
 const initialMessages: ChatMessage[] = [
   {
@@ -52,6 +49,19 @@ const initialMessages: ChatMessage[] = [
   },
 ];
 
+function buildPromptFromOption(
+  option: DemoOption | null,
+  keyConcepts: string[] = [],
+): string {
+  if (!option) {
+    return "";
+  }
+
+  const concepts = keyConcepts.slice(0, 4).join(", ");
+  const conceptsLine = concepts ? ` Key concepts: ${concepts}.` : "";
+  return `${option.title}. ${option.gameplayLoop} Win condition: ${option.winCondition} Fail condition: ${option.failCondition}.${conceptsLine}`;
+}
+
 export default function ChatLanding() {
   const router = useRouter();
   const [input, setInput] = useState("");
@@ -60,12 +70,21 @@ export default function ChatLanding() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
 
+  const [uploadState, setUploadState] = useState<UploadState>("idle");
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [analysis, setAnalysis] = useState<SyllabusExtractionResult | null>(null);
+  const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
+
   const placeholderHint = useMemo(() => {
     if (selectedFile) {
       return `Attached: ${selectedFile.name}`;
     }
     return "Describe the game you want to generate...";
   }, [selectedFile]);
+
+  const selectedOption = useMemo(() => {
+    return analysis?.options.find((option) => option.id === selectedOptionId) ?? null;
+  }, [analysis?.options, selectedOptionId]);
 
   const appendLog = (entry: Omit<RunLog, "id" | "timestamp">) => {
     const timestamp = new Date().toLocaleTimeString();
@@ -85,9 +104,9 @@ export default function ChatLanding() {
     payload: {
       prompt: string;
       fileName: string | null;
-      plan?: {};
+      plan?: Record<string, unknown>;
       issues?: string[];
-    }
+    },
   ) => {
     appendLog({
       step,
@@ -106,14 +125,17 @@ export default function ChatLanding() {
         throw new Error("Request failed");
       }
 
-      const data = (await response.json()) as { message?: string; config?: {} };
+      const data = (await response.json()) as {
+        message?: string;
+        config?: Record<string, unknown>;
+      };
       appendLog({
         step,
         status: "ok",
         message: data.message ?? `${stepLabels[step]} complete.`,
       });
       return data;
-    } catch (error) {
+    } catch {
       appendLog({
         step,
         status: "error",
@@ -123,40 +145,44 @@ export default function ChatLanding() {
     }
   };
 
-  const runPipeline = async (options?: {
-    navigate?: boolean;
-    promptOverride?: string;
-  }) => {
+  const runPipeline = async (options?: { navigate?: boolean; promptOverride?: string }) => {
     if (isRunning) {
       return;
     }
-    const prompt = options?.promptOverride ?? input.trim();
+
+    const selectedPrompt = buildPromptFromOption(selectedOption, analysis?.keyConcepts);
+    const prompt = (options?.promptOverride ?? input.trim()) || selectedPrompt;
     const basePayload = { prompt, fileName: selectedFile?.name ?? null };
     setIsRunning(true);
-    let plan: {} | null = null;
+
+    let plan: Record<string, unknown> | null = null;
     let issues: string[] = [];
-    let gameConfig: {} | null = null;
+    let gameConfig: Record<string, unknown> | null = null;
+
     for (const step of orderedSteps) {
       const payload =
         step === "build" && plan
           ? { ...basePayload, plan }
           : step === "fix"
-          ? { ...basePayload, issues }
-          : basePayload;
+            ? { ...basePayload, issues }
+            : basePayload;
+
       const data = await runStep(step, payload);
       if (!data) {
         break;
       }
+
       if (step === "build" && data.config) {
         gameConfig = data.config;
       }
       if (step === "design" && "plan" in data) {
-        plan = (data as { plan?: {} }).plan ?? null;
+        plan = (data as { plan?: Record<string, unknown> }).plan ?? null;
       }
       if (step === "playtest" && "issues" in data) {
         issues = (data as { issues?: string[] }).issues ?? [];
       }
     }
+
     setIsRunning(false);
     if (options?.navigate && gameConfig) {
       localStorage.setItem("age.gameConfig", JSON.stringify(gameConfig));
@@ -164,9 +190,71 @@ export default function ChatLanding() {
     }
   };
 
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+  const runSyllabusExtraction = async (
+    fileOverride?: File,
+  ): Promise<SyllabusExtractionResult | null> => {
+    const targetFile = fileOverride ?? selectedFile;
+    if (!targetFile) {
+      setUploadError("Select a syllabus file before running the extraction pipeline.");
+      setUploadState("error");
+      return null;
+    }
+
+    setUploadError(null);
+    setUploadState("running");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", targetFile);
+
+      const response = await fetch("/api/syllabus/extract", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data: SyllabusExtractionResult | { error: string } = await response.json();
+      if (!response.ok || "error" in data) {
+        throw new Error("error" in data ? data.error : "Pipeline failed.");
+      }
+
+      const preferredOption =
+        data.options.find((option) => option.id === data.recommendedOptionId) ??
+        data.options[0] ??
+        null;
+      setAnalysis(data);
+      setSelectedOptionId(preferredOption?.id ?? null);
+      if (!input.trim()) {
+        setInput(buildPromptFromOption(preferredOption, data.keyConcepts));
+      }
+      setUploadState("done");
+      return data;
+    } catch (error) {
+      setUploadState("error");
+      setUploadError(error instanceof Error ? error.message : "Pipeline failed.");
+      return null;
+    }
+  };
+
+  const handleRunSyllabus = async () => {
+    const result = await runSyllabusExtraction();
+    if (!result) {
+      return;
+    }
+
+    const preferredOption =
+      result.options.find((option) => option.id === result.recommendedOptionId) ??
+      result.options[0] ??
+      null;
+    const promptOverride = buildPromptFromOption(preferredOption, result.keyConcepts);
+    await runPipeline({ navigate: false, promptOverride });
+  };
+
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
     setSelectedFile(file);
+    if (file) {
+      await runSyllabusExtraction(file);
+    }
   };
 
   const handleSend = async () => {
@@ -174,6 +262,7 @@ export default function ChatLanding() {
     if (!trimmed || isRunning) {
       return;
     }
+
     const now = Date.now();
     setMessages((prev) => [
       ...prev,
@@ -184,9 +273,50 @@ export default function ChatLanding() {
         text: "Starting the pipeline and preparing the canvas...",
       },
     ]);
+
     setInput("");
     await runPipeline({ navigate: true, promptOverride: trimmed });
   };
+
+  const handleCreateFromOption = async (option: DemoOption) => {
+    if (isRunning) {
+      return;
+    }
+
+    const promptOverride = buildPromptFromOption(option, analysis?.keyConcepts);
+    setSelectedOptionId(option.id);
+    setInput(promptOverride);
+    await runPipeline({ navigate: true, promptOverride });
+  };
+
+  function renderOptionCard(option: DemoOption) {
+    const isSelected = selectedOptionId === option.id;
+    return (
+      <div key={option.id} className="optionCardWrap">
+        <button
+          className={`optionCard${isSelected ? " selected" : ""}`}
+          onClick={() => {
+            setSelectedOptionId(option.id);
+            setInput(buildPromptFromOption(option, analysis?.keyConcepts));
+          }}
+          type="button"
+        >
+          <p className="optionTitle">{option.title}</p>
+          <p className="optionLoop">{option.gameplayLoop}</p>
+        </button>
+        <button
+          className="optionCreateButton"
+          type="button"
+          onClick={() => {
+            void handleCreateFromOption(option);
+          }}
+          disabled={isRunning}
+        >
+          Create
+        </button>
+      </div>
+    );
+  }
 
   return (
     <main className="page">
@@ -211,8 +341,8 @@ export default function ChatLanding() {
           <p className="eyebrow">Chat-first game creation</p>
           <h1>Design a playable system through conversation.</h1>
           <p className="lede">
-            Describe mechanics, constraints, and win conditions, or upload a
-            syllabus to derive the game structure.
+            Describe mechanics, constraints, and win conditions, or upload a syllabus to derive
+            the game structure.
           </p>
         </section>
 
@@ -243,14 +373,16 @@ export default function ChatLanding() {
                   onChange={(event) => setInput(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
-                      handleSend();
+                      void handleSend();
                     }
                   }}
                 />
                 <button
                   className="sendButton"
                   type="button"
-                  onClick={handleSend}
+                  onClick={() => {
+                    void handleSend();
+                  }}
                   disabled={isRunning || !input.trim()}
                 >
                   Send
@@ -274,7 +406,9 @@ export default function ChatLanding() {
                   id="syllabus-file"
                   type="file"
                   accept=".pdf,.md,.txt,.doc,.docx"
-                  onChange={handleFileChange}
+                  onChange={(event) => {
+                    void handleFileChange(event);
+                  }}
                 />
                 <label className="uploadButton" htmlFor="syllabus-file">
                   Upload Syllabus
@@ -290,6 +424,17 @@ export default function ChatLanding() {
                   <li>Map concepts to mechanics</li>
                   <li>Generate a playable system</li>
                 </ul>
+                <p className="statusText">
+                  Status:{" "}
+                  {uploadState === "running"
+                    ? "Running extraction pipeline..."
+                    : uploadState === "done"
+                      ? "Ready"
+                      : uploadState === "error"
+                        ? "Failed"
+                        : "Idle"}
+                </p>
+                {uploadError ? <p className="errorText">{uploadError}</p> : null}
               </div>
             </div>
 
@@ -302,7 +447,7 @@ export default function ChatLanding() {
                     className="stepCard"
                     type="button"
                     onClick={() =>
-                      runStep(step, {
+                      void runStep(step, {
                         prompt: input.trim(),
                         fileName: selectedFile?.name ?? null,
                       })
@@ -316,10 +461,22 @@ export default function ChatLanding() {
               <button
                 className="primaryButton"
                 type="button"
-                onClick={() => runPipeline({ navigate: false })}
+                onClick={() => {
+                  void runPipeline({ navigate: false });
+                }}
                 disabled={isRunning}
               >
                 {isRunning ? "Running..." : "Run Pipeline"}
+              </button>
+              <button
+                className="primaryButton"
+                type="button"
+                onClick={() => {
+                  void handleRunSyllabus();
+                }}
+                disabled={uploadState === "running"}
+              >
+                {uploadState === "running" ? "Extracting..." : "Run Syllabus Extraction"}
               </button>
             </div>
 
@@ -327,9 +484,7 @@ export default function ChatLanding() {
               <p className="metaTitle">Run Log</p>
               <div className="logList">
                 {logs.length === 0 ? (
-                  <p className="logEmpty">
-                    No runs yet. Trigger a step to see activity.
-                  </p>
+                  <p className="logEmpty">No runs yet. Trigger a step to see activity.</p>
                 ) : (
                   logs.map((log) => (
                     <div key={log.id} className={`logItem ${log.status}`}>
@@ -343,6 +498,37 @@ export default function ChatLanding() {
                 )}
               </div>
             </div>
+
+            {analysis ? (
+              <div className="optionPanel">
+                <p className="metaTitle">Extracted Mechanics Signal</p>
+                <p className="summaryText">{analysis.summary}</p>
+
+                <div className="chips">
+                  {analysis.keyConcepts.map((concept) => (
+                    <span className="chip" key={concept}>
+                      {concept}
+                    </span>
+                  ))}
+                </div>
+
+                <p className="metaTitle">Interactive Demo Options</p>
+                <div className="optionGrid">{analysis.options.map(renderOptionCard)}</div>
+
+                {selectedOption ? (
+                  <div className="optionDetail">
+                    <p className="detailTitle">{selectedOption.title}</p>
+                    <p>
+                      <strong>Win:</strong> {selectedOption.winCondition}
+                    </p>
+                    <p>
+                      <strong>Fail:</strong> {selectedOption.failCondition}
+                    </p>
+                    <p>{selectedOption.whyItFits}</p>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </aside>
         </section>
       </div>

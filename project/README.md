@@ -34,3 +34,28 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## UI Testing Agent (Localhost)
+
+This project now includes a simple automated UI testing agent at `POST /api/ui-test`.
+
+Example request:
+
+```bash
+curl -X POST http://localhost:3000/api/ui-test \
+  -H "Content-Type: application/json" \
+  -d '{
+    "baseUrl": "http://localhost:3000",
+    "paths": ["/", "/chat", "/game"]
+  }'
+```
+
+What it reports:
+- unreachable pages / HTTP errors
+- missing title, viewport, main landmark, and H1 issues
+- missing image alt text
+- unlabeled form controls
+- unnamed buttons
+- generic link text
+
+The response includes severity-tagged findings and specific fix suggestions in `report.pages[].issues[].fix`.
